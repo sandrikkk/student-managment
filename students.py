@@ -5,6 +5,7 @@ from tkinter import ttk
 from tkinter import messagebox
 import pymysql
 
+
 class Students:
     def __init__(self, window):
         self.window = window
@@ -26,7 +27,6 @@ class Students:
         titlelabel = Label(self.window, text="სტუდენტთა ქულათა სისტემა", font=('Helvetica', 30, 'bold'), bg='#864879',
                            fg='black', bd=5, relief=GROOVE)
         titlelabel.pack(side=TOP, fill=X)
-
 
         frame1 = Frame(self.window, bg="#219F94", relief=RIDGE, bd=3)
         frame1.place(relx=0.30, rely=0.1, relwidth=0.7, relheight=0.62)
@@ -50,7 +50,6 @@ class Students:
         self.procenti = StringVar()
         self.statusi = StringVar()
 
-
         self.python = IntVar()
         self.csharp = IntVar()
         self.cplusplus = IntVar()
@@ -64,7 +63,6 @@ class Students:
         # ---------------------------------ინფორმაცია სტუდენტზე---------------------------------
         frame1_label = Label(frame1, text="სტუდენტის ID:", bg="#219F94", font=('cooper black', 15, 'bold'))
         frame1_label.grid(row=0, column=0, padx=0, pady=7, sticky='w')
-
 
         frame1_entry = Entry(frame1, bd=5, relief=RIDGE, width=20, textvariable=self.student_id)
         frame1_entry.grid(row=0, column=1, padx=0, pady=5)
@@ -249,6 +247,21 @@ class Students:
         self.studentis_cxrili.bind("<ButtonRelease-1>", self.ganaxleba)
         self.DataGamotana()
 
+    def check_subjects(self, integer_fields):
+        field_names = []
+        for subject, field_value in integer_fields.items():
+            value = int(field_value.get())
+            if value < 51:
+                field_names.append(subject)
+                self.statusi.set(f"Fail in {subject}")
+
+        if field_names:
+            subjects_str = ", ".join(field_names)
+            self.statusi.set(f"Fail in {subjects_str}")
+        else:
+            self.statusi.set("Pass")
+        return self.statusi.get()
+
     def jami(self):
         integer_fields = {"Python": self.python,
                           "C#": self.csharp,
@@ -257,6 +270,7 @@ class Students:
                           "C++": self.cplusplus,
                           "Information Security": self.inf_usf,
                           "Q-selebi": self.qselebi}
+
         jami = (self.python.get() +
                 self.csharp.get() +
                 self.java.get() +
@@ -264,26 +278,41 @@ class Students:
                 self.cplusplus.get() +
                 self.inf_usf.get() +
                 self.qselebi.get())
+
         procenti = (jami / 700) * 100
         procenti = math.floor(procenti)
-        field_names = []
-        for subject, field_value in integer_fields.items():
-            value = int(field_value.get())
-            if value < 51:
-                field_names.append(subject)
-                self.statusi.set(f"fail in {subject}")
-        if field_names:
-            subjects_str = ", ".join(field_names)
-            self.statusi.set(f"Fail in {subjects_str}")
-        else:
-            self.statusi.set("Pass")
+
+        self.check_subjects(integer_fields)
+
         self.qulata_jami.set(str(jami))
         self.procenti.set(str(procenti) + "%")
 
     def bazashidamateba(self):
         self.frame1_entry.config(state=NORMAL)
-        if self.student_id.get() == "" or self.kursis_saxeli.get() == "" or self.python.get() == "" or self.csharp.get() == "" or self.csharp.get() == "" or self.java.get() == "" or self.javascript.get() == "" or self.cplusplus.get() == "" or self.qselebi.get() == "" or self.inf_usf.get() == "":
+
+        fields = [
+            self.student_id.get(),
+            self.kursis_saxeli.get(),
+            self.python.get(),
+            self.csharp.get(),
+            self.java.get(),
+            self.javascript.get(),
+            self.cplusplus.get(),
+            self.qselebi.get(),
+            self.inf_usf.get()
+        ]
+
+        student_id = self.student_id.get()
+
+        try:
+            integer_field = int(student_id)
+        except ValueError:
+            tkinter.messagebox.showerror("Error", "ID უნდა იყოს მთელი რიცხვი!")
+            return
+        if any(field == "" for field in fields):
             tkinter.messagebox.showerror("Error", "გთხოვთ შეავსოთ ყველა ველი.")
+        elif any(int(field) > 100 for field in fields[2:]):
+            tkinter.messagebox.showerror("Error", "ქულის ველი არ უნდა აღემადებოდეს 100-ს !")
         else:
             self.jami()
             self.shedegi()
@@ -292,11 +321,12 @@ class Students:
             cur.execute("SELECT * FROM students")
             rows = cur.fetchall()
             for row in rows:
-                if row[0] == self.student_id.get():
-                    messagebox.showerror('Error', "დაფიქსირდა ერთნაირი ID !")
-                    raise ValueError
+                if row[0] == student_id:
+                    tkinter.messagebox.showerror('Error', "დაფიქსირდა ერთნაირი ID !")
+                    con.close()
+                    return
             cur.execute("INSERT INTO students VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", (
-                self.student_id.get(),
+                student_id,
                 self.kursis_saxeli.get(),
                 self.python.get(),
                 self.csharp.get(),
@@ -315,8 +345,6 @@ class Students:
             self.DataGamotana()
             con.close()
             self.gasuftaveba()
-
-    import tkinter.messagebox
 
     def daxurva(self):
         daxurva = tkinter.messagebox.askyesno("გასვლა გსურთ?", "გრურთ პროგრამის დახურვა ?")
@@ -386,9 +414,7 @@ class Students:
             con.close()
             self.DataGamotana()
 
-
-
-    def ganaxleba(self,event):
+    def ganaxleba(self, event):
         ganaxleba = self.studentis_cxrili.focus()
         content = self.studentis_cxrili.item(ganaxleba)
         row = content['values']
@@ -412,14 +438,6 @@ class Students:
         self.frame1_entry.config(state=DISABLED, textvariable=self.student_id)
         self.frame1_entry.grid(row=0, column=1, padx=0, pady=5)
 
-
-        # self.frame1_entry.grid_remove()
-
-        # self.student_id_label.config(background="#219F94", font=('cooper black', 15, 'bold'), text=row[0])
-        # self.student_id_label.grid(row=0, column=1, padx=0, pady=5)  # Show the label widget
-
-
-
     def updatebtn(self):
         self.frame1_entry.config(state=NORMAL)
 
@@ -429,6 +447,17 @@ class Students:
         # Create a cursor object to execute SQL queries
         cursor = con.cursor()
 
+        integer_fields = {
+            "Python": self.python,
+            "C#": self.csharp,
+            "Java": self.java,
+            "JavaScript": self.javascript,
+            "C++": self.cplusplus,
+            "Information Security": self.inf_usf,
+            "Q-selebi": self.qselebi
+        }
+        a = self.check_subjects(integer_fields)
+        self.statusi.set(a)
         # Get the values from the entry-boxes
         student_id = self.student_id.get()
         kursis_saxeli = self.kursis_saxeli.get()
@@ -463,32 +492,27 @@ class Students:
         WHERE student_id = %s
         """
 
-        # Execute the SQL query
         values = (
             kursis_saxeli, python, csharp, java, javascript, cplusplus,
             inf_usf, qselebi, qulata_jami, procenti, statusi, saxeli, gvari, student_id
         )
         cursor.execute(query, values)
 
-        # Commit the changes to the database
         con.commit()
 
-        # Close the cursor and the database connection
         cursor.close()
         con.close()
 
-        #self.student_id_label.grid_forget()  # Hide the label widget
-        # Show the entry box
-        #self.frame1_entry.grid(row=0, column=1, padx=0, pady=5)
+        # Update other fields
+        self.qulata_jami.set(str(qulata_jami))
+        self.procenti.set(str(procenti) + "%")
 
         self.DataGamotana()
         self.gasuftaveba()
 
-        # Display a message indicating the update was successful
         print("Record updated successfully!")
 
 
 window = Tk()
 student = Students(window)
 window.mainloop()
-
