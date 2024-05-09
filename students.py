@@ -4,18 +4,17 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 import pymysql
-
+import logger
+from sql.connection_handler import sql_connection,sql_names
 
 class Students:
     def __init__(self, window):
         self.window = window
-        self.window.title("სტუდენტთა ქულათა სისტემა")
+        self.window.title("სტუდენტთა შეფასების პროგრამული სისტემა")
 
-        # Get the screen width and height
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
 
-        # Calculate the appropriate size and position for the window
         width = int(screen_width * 0.81)
         height = int(screen_height * 0.75)
         x = (screen_width - width) // 2
@@ -24,7 +23,7 @@ class Students:
         self.window.geometry(f"{width}x{height}+{x}+{y}")
         self.window.resizable(True, True)
 
-        titlelabel = Label(self.window, text="სტუდენტთა ქულათა სისტემა", font=('Helvetica', 30, 'bold'), bg='#864879',
+        titlelabel = Label(self.window, text="სტუდენტთა შეფასების პროგრამული სისტემა", font=('Helvetica', 30, 'bold'), bg='#864879',
                            fg='black', bd=5, relief=GROOVE)
         titlelabel.pack(side=TOP, fill=X)
 
@@ -69,10 +68,6 @@ class Students:
 
         self.frame1_entry = ttk.Entry(frame1)
 
-        # student_id_label = Label(frame1, bg="#219F94", font=('cooper black', 15, 'bold'))
-        # student_id_label.grid(row=0, column=1, padx=0, pady=5)
-        # student_id_label.grid_forget()
-        # self.student_id_label = ttk.Label(frame1)
 
         frame1_label1 = Label(frame1, text="სახელი:", bg="#219F94", font=('cooper black', 15, 'bold'))
         frame1_label1.grid(row=1, column=0, padx=0, pady=7, sticky='w')
@@ -313,18 +308,20 @@ class Students:
             tkinter.messagebox.showerror("Error", "გთხოვთ შეავსოთ ყველა ველი.")
         elif any(int(field) > 100 for field in fields[2:]):
             tkinter.messagebox.showerror("Error", "ქულის ველი არ უნდა აღემადებოდეს 100-ს !")
+
         else:
             self.jami()
-            self.shedegi()
-            con = pymysql.connect(host='localhost', user='root', password='sandroo1231', database='students')
-            cur = con.cursor()
+            # self.shedegi()
+            connect = sql_connection()
+            cur = connect.cursor()
             cur.execute("SELECT * FROM students")
             rows = cur.fetchall()
             for row in rows:
                 if row[0] == student_id:
                     tkinter.messagebox.showerror('Error', "დაფიქსირდა ერთნაირი ID !")
-                    con.close()
+                    connect.close()
                     return
+            self.shedegi()
             cur.execute("INSERT INTO students VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", (
                 student_id,
                 self.kursis_saxeli.get(),
@@ -341,9 +338,9 @@ class Students:
                 self.saxeli.get(),
                 self.gvari.get()
             ))
-            con.commit()
+            connect.commit()
             self.DataGamotana()
-            con.close()
+            connect.close()
             self.gasuftaveba()
 
     def daxurva(self):
@@ -372,16 +369,16 @@ class Students:
         self.textarea.delete("1.0", END)
 
     def DataGamotana(self):
-        con = pymysql.connect(host='localhost', user='root', password='sandroo1231', database='students')
-        cur = con.cursor()
+        connect = sql_connection()
+        cur = connect.cursor()
         cur.execute("Select * from students")
         rows = cur.fetchall()
         if len(rows) != 0:
             self.studentis_cxrili.delete(*self.studentis_cxrili.get_children())
             for row in rows:
                 self.studentis_cxrili.insert('', END, values=row)
-            con.commit()
-        con.close()
+            connect.commit()
+        connect.close()
 
     def shedegi(self):
         self.textarea.insert(END, '\n\n************************************************')
@@ -403,15 +400,19 @@ class Students:
         self.textarea.insert(END, '\n\n================================')
         self.textarea.insert(END, '\n\n************************************************')
 
+        logger.write_log(self)
+
+
+
     def delete(self):
         if self.student_id.get() == "":
             messagebox.showerror("Error", 'გთხოვთ შემოიტანოთ წასაშლელი Student-ის ID')
         else:
-            con = pymysql.connect(host='localhost', user='root', password='sandroo1231', database='students')
-            cur = con.cursor()
+            connect = sql_connection()
+            cur = connect.cursor()
             cur.execute("DELETE FROM students WHERE student_id=%s", self.student_id.get())
-            con.commit()
-            con.close()
+            connect.commit()
+            connect.close()
             self.DataGamotana()
 
     def ganaxleba(self, event):
@@ -442,10 +443,9 @@ class Students:
         self.frame1_entry.config(state=NORMAL)
 
         # Establish a connection to the MySQL database
-        con = pymysql.connect(host='localhost', user='root', password='sandroo1231', database='students')
-
+        connect = sql_connection()
         # Create a cursor object to execute SQL queries
-        cursor = con.cursor()
+        cursor = connect.cursor()
 
         integer_fields = {
             "Python": self.python,
@@ -498,11 +498,11 @@ class Students:
         )
         cursor.execute(query, values)
 
-        con.commit()
+        connect.commit()
 
         cursor.close()
-        con.close()
-
+        connect.close()
+        logger.write_log(self,is_update=True)
         # Update other fields
         self.qulata_jami.set(str(qulata_jami))
         self.procenti.set(str(procenti) + "%")
